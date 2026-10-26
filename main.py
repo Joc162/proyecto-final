@@ -280,8 +280,7 @@ else:
                 if tipo_reporte == "Movimientos mensuales":
                     mes = st.date_input("Seleccione un día del mes deseado")
 
-                # Se eliminó el radio button de formatos redundantes.
-                # Ahora al dar clic se generan ambos archivos de inmediato.
+
                 if st.form_submit_button("Generar Reporte 📊", type="primary", use_container_width=True):
                     csv_data = generar_csv(tipo_reporte)
                     pdf_data = generar_pdf(tipo_reporte)
