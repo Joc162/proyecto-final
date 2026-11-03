@@ -28,14 +28,11 @@ if "username" not in st.session_state:
     st.session_state.username = ""
 if "last_activity" not in st.session_state:
     st.session_state.last_activity = time.time()
-if "gerencia_auth" not in st.session_state:
-    st.session_state.gerencia_auth = False
 
 # Verificación de Timeout Global
 if st.session_state.logged_in:
     if time.time() - st.session_state.last_activity > TIMEOUT_SECONDS:
         st.session_state.logged_in = False
-        st.session_state.gerencia_auth = False
         st.warning("Su sesión expiró por inactividad. Inicie sesión de nuevo.")
         st.rerun()
     else:
@@ -125,26 +122,12 @@ def generar_pdf(tipo_reporte):
 
 
 # ==========================================
-# POP-UPS (CUADROS DE DIÁLOGO)
+# POP-UP DE DESCARGA DIRECTA
 # ==========================================
-@st.dialog("🔒 Acceso Exclusivo de Gerencia")
-def modal_autenticacion():
-    st.write("Ingrese la clave maestra para habilitar la descarga de reportes.")
-    clave = st.text_input("Clave de autorización", type="password")
-
-    if st.button("Verificar Identidad", use_container_width=True, type="primary"):
-        if clave == "123":
-            st.session_state.gerencia_auth = True
-            st.rerun()
-        else:
-            st.error("Clave incorrecta. Acceso denegado.")
-
-
 @st.dialog("📄 Reporte Generado")
 def modal_descarga_reporte(csv_data, pdf_data, base_filename):
     st.success("¡El reporte se ha procesado exitosamente!")
 
-    # Botón directo para descargar CSV
     st.download_button(
         label="⬇️ Descargar en formato CSV",
         data=csv_data,
@@ -154,7 +137,6 @@ def modal_descarga_reporte(csv_data, pdf_data, base_filename):
         type="primary"
     )
 
-    # Botón directo para descargar PDF
     st.download_button(
         label="⬇️ Descargar en formato PDF",
         data=pdf_data,
@@ -165,15 +147,8 @@ def modal_descarga_reporte(csv_data, pdf_data, base_filename):
     )
 
     st.divider()
-    st.write("¿Qué desea hacer ahora?")
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("Hacer otro", use_container_width=True):
-            st.rerun()
-    with col2:
-        if st.button("Bloquear", use_container_width=True, type="primary"):
-            st.session_state.gerencia_auth = False
-            st.rerun()
+    if st.button("Cerrar ventana", use_container_width=True):
+        st.rerun()
 
 
 # ==========================================
@@ -202,7 +177,6 @@ else:
     with col_btn:
         if st.button("🚪 Salir", use_container_width=True):
             st.session_state.logged_in = False
-            st.session_state.gerencia_auth = False
             st.rerun()
 
     st.divider()
@@ -258,32 +232,21 @@ else:
                 else:
                     st.success("Baja registrada en el sistema.")
 
-    # 4. PESTAÑA DE REPORTES
-    with tab_reportes:
-        if not st.session_state.gerencia_auth:
-            st.warning("⚠️ Esta sección está restringida únicamente a la Alta Gerencia.")
-            if st.button("Desbloquear Reportes 🔒", use_container_width=True):
-                modal_autenticacion()
-        else:
-            col_info, col_lock = st.columns([3, 1])
-            col_info.success("Acceso concedido.")
-            if col_lock.button("🔒 Bloquear"):
-                st.session_state.gerencia_auth = False
-                st.rerun()
+        # 4. PESTAÑA DE REPORTES (LIBRE)
+        with tab_reportes:
+            st.info("Descargue los movimientos o existencias del sistema en CSV o PDF.")
 
-            st.info("Descargue los movimientos o existencias del sistema.")
+            # Al no usar 'st.form', la interfaz se actualiza al instante al cambiar de opción
+            tipo_reporte = st.selectbox("Tipo de Reporte", ["Existencias actuales", "Movimientos mensuales"])
 
-            with st.form("form_reportes"):
-                tipo_reporte = st.selectbox("Tipo de Reporte", ["Existencias actuales", "Movimientos mensuales"])
+            mes = None
+            if tipo_reporte == "Movimientos mensuales":
+                mes = st.date_input("Seleccione un día del mes deseado")
 
-                mes = None
-                if tipo_reporte == "Movimientos mensuales":
-                    mes = st.date_input("Seleccione un día del mes deseado")
+            # Usamos st.button en lugar de st.form_submit_button
+            if st.button("Generar Reporte 📊", type="primary", use_container_width=True):
+                csv_data = generar_csv(tipo_reporte)
+                pdf_data = generar_pdf(tipo_reporte)
+                nombre_archivo = "inventario" if tipo_reporte == "Existencias actuales" else "movimientos"
 
-
-                if st.form_submit_button("Generar Reporte 📊", type="primary", use_container_width=True):
-                    csv_data = generar_csv(tipo_reporte)
-                    pdf_data = generar_pdf(tipo_reporte)
-                    nombre_archivo = "inventario" if tipo_reporte == "Existencias actuales" else "movimientos"
-
-                    modal_descarga_reporte(csv_data, pdf_data, nombre_archivo)
+                modal_descarga_reporte(csv_data, pdf_data, nombre_archivo)
